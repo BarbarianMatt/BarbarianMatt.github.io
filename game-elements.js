@@ -796,6 +796,7 @@
 	
 		for (var unitType in UnitType) {
 			var counter = thisSideCounters[unitType] || { count: 0 };
+			console.log(counter);
 			if (!((unitType === UnitType.Mech && options.attacker.race === 'L1Z1X') || (unitType === UnitType.Flagship && thisSideOptions.race === 'Xxcha')))
 				counter.participants = counter.participants ? 0: counter.participants;
 				
