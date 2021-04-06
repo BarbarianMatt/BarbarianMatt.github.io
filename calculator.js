@@ -284,6 +284,7 @@
 				}
 				result.push(currentTransitions);
 			}
+			
 			var bestUnit = getUnitWithLowest(fleet, game.ThrowValues[throwType]);
 			if (bestUnit) {
 				result.pop();
@@ -301,7 +302,8 @@
 		function computeUnitTransitions(unit, throwType, modifier, modifierRoll, reroll) {
 			var battleValue = unit[game.ThrowValues[throwType]];
 			var diceCount = unit[game.ThrowDice[throwType]];
-			if (diceCount === 0) return [1];
+			if (diceCount === 0 && modifierRoll===0) return [1];
+			if (battleValue>10 && modifier === 0) return [1];
 			modifier = modifier || 0;
 			var modifierFunction = typeof modifier === 'function' ? modifier : function (unit) {
 				return modifier;
@@ -714,18 +716,14 @@
 							var defenderAdditional=0;
 							var attackerReroll= options.attacker.jolnarCommander ? true: false;
 							var defenderReroll= options.defender.jolnarCommander ? true: false;
-							if (options.attacker.argentCommander)
-								attackerAdditional+=1;
-							if (options.attacker.argentStrikeWingBarrageA && options.attacker.race !== game.Race.Argent)
-								attackerAdditional+=1;
-							if (options.defender.argentCommander)
-								defenderAdditional+=1;
-							if (options.defender.argentStrikeWingBarrageD && options.defender.race !== game.Race.Argent)
-								defenderAdditional+=1;
+							attackerAdditional= options.attacker.argentCommander ? attackerAdditional +1: attackerAdditional;
+							attackerAdditional=options.attacker.argentStrikeWingBarrageA && options.attacker.race !== game.Race.Argent ? attackerAdditional + 1: attackerAdditional;
+							defenderAdditional= options.defender.argentCommander ? defenderAdditional +1: defenderAdditional;
+							defenderAdditional=options.defender.argentStrikeWingBarrageA && options.defender.race !== game.Race.Argent ? defenderAdditional + 1: defenderAdditional;
 							var attackerTransitions = computeSelectedUnitsTransitions(problem.attacker, game.ThrowType.Barrage, hasBarrage, 0, attackerAdditional,attackerReroll);
 							var defenderTransitions = computeSelectedUnitsTransitions(problem.defender, game.ThrowType.Barrage, hasBarrage, 0, defenderAdditional,defenderReroll);
-							var attackerVulnerable = options.defender.waylay ? getVulnerableUnitsRange(problem.attacker, True()) : getVulnerableUnitsRange(problem.attacker, unitIsFighterOrCancelHit());
-							var defenderVulnerable = options.attacker.waylay ? getVulnerableUnitsRange(problem.defender, True()) : getVulnerableUnitsRange(problem.defender, unitIsFighterOrCancelHit());
+							var attackerVulnerable = options.defender.waylay ? getVulnerableUnitsRange(problem.attacker, True()) : getVulnerableUnitsRange(problem.attacker, unitIsFighter());
+							var defenderVulnerable = options.attacker.waylay ? getVulnerableUnitsRange(problem.defender, True()) : getVulnerableUnitsRange(problem.defender, unitIsFighter());
 
 							var distribution = problem.distribution;
 							for (var a = 0; a < distribution.rows; a++) {
@@ -749,9 +747,9 @@
 
 						return result;
 
-						function unitIsFighterOrCancelHit(){
+						function unitIsFighter(){
 							return function (unit) {
-								return unit.type === game.UnitType.Fighter || unit.cancelHit;
+								return unit.type === game.UnitType.Fighter;
 							}; 
 						}
 						function hasBarrage(unit) {
@@ -1092,7 +1090,6 @@
 			if (!bombardmentPossible) return [1];
 			var attackerModifier = options.defender.bunker ? -4 : 0;
 			var bombardmentAttacker = attackerFull.filter(hasBombardment);
-			//console.log(options.attacker);
 			if (options.attacker.race === game.Race.L1Z1X){
 				var temp=[];
 				var thisSideCounters = input[game.SideUnits["attacker"]];
@@ -1139,7 +1136,7 @@
 			if (bestUnit) {
 				var unitWithOneDie = bestUnit.clone();
 				unitWithOneDie[game.ThrowDice[throwType]] = roll;
-				var unitTransitions = computeUnitTransitions(unitWithOneDie, throwType, modifier,reroll, 0);
+				var unitTransitions = computeUnitTransitions(unitWithOneDie, throwType, modifier, 0, reroll);
 				fleetInflicted = slideMultiply(unitTransitions, fleetInflicted);
 			}
 			return fleetInflicted;

@@ -55,18 +55,32 @@
 				// veeery poor man's background processing
 				setTimeout(function () {
 					// unfortunately some game aspects are hard to handle in the calculator
-					var argentPresent = self.options.attacker.race === Race.Argent || self.options.defender.race === Race.Argent;
-					if (argentPresent){
-						n = window;
-						var attackerBarrageNum=0;
-						var defenderBarrageNum=0;
-						n.expandFleet(self, n.BattleSide.attacker).forEach(function (unit){
-							attackerBarrageNum+=unit.barrageDice;
-						})
-						n.expandFleet(self, n.BattleSide.defender).forEach(function (unit){
-							defenderBarrageNum+=unit.barrageDice;
-						})
-					}
+					
+					n = window;
+					var attackerBarrageNum=0;
+					var defenderBarrageNum=0;
+					var attackerSustainShip=0;
+					var defenderSustainShip=0;
+					var attackerCancelHits=0;
+					var defenderCancelHits=0;
+					var attackerFighters=0;
+					var defenderFighters=0;
+					n.expandFleet(self, n.BattleSide.attacker).forEach(function (unit){
+						attackerBarrageNum+=unit.barrageDice;
+						attackerSustainShip+=unit.isDamageGhost && unit.typeShip;
+						attackerCancelHits+=unit.cancelHit;
+						attackerFighters+= unit.type === n.UnitType.Fighter;
+					})
+					n.expandFleet(self, n.BattleSide.defender).forEach(function (unit){
+						defenderBarrageNum+=unit.barrageDice;
+						defenderSustainShip+=unit.isDamageGhost && unit.typeShip;
+						defenderCancelHits+=!isNaN(unit.cancelHit);
+						defenderFighters+= unit.type === n.UnitType.Fighter;
+					})
+					attackerBarrageNum= self.options.attacker.argentCommander ? attackerBarrageNum+1:attackerBarrageNum;
+					attackerBarrageNum= self.options.attacker.argentStrikeWingBarrageA ? attackerBarrageNum+1:attackerBarrageNum;
+					defenderBarrageNum= self.options.defender.argentCommander ? defenderBarrageNum+1:defenderBarrageNum;
+					attackerBarrageNum= self.options.defender.argentStrikeWingBarrageD ? defenderBarrageNum+1:defenderBarrageNum;
 					var duraniumArmor = self.options.attacker.duraniumArmor || self.options.defender.duraniumArmor;
 					var l1z1xFlagship = (self.options.attacker.race === Race.L1Z1X && self.attackerUnits.Flagship.count !== 0 ||
 						self.options.defender.race === Race.L1Z1X && self.defenderUnits.Flagship.count !== 0) && self.battleType === BattleType.Space;
@@ -78,7 +92,7 @@
 					// Same reason as Sardakk Mechs
 					var reflective = (self.options.attacker.reflectiveShielding || self.options.defender.reflectiveShielding);
 					// due to the fact that the Raid formation ability only triggers if all the opposing fighters are dead, it can't be used in the normal calculator
-					var argentRaid = ((self.options.attacker.race === Race.Argent && attackerBarrageNum>0)|| (self.options.defender.race === Race.Argent && defenderBarrageNum>0))
+					var argentRaid = ((self.options.attacker.race === Race.Argent && attackerBarrageNum>defenderFighters && defenderSustainShip>0) || (self.options.defender.race === Race.Argent && defenderBarrageNum>attackerFighters && attackerSustainShip>0))
 					var x89OmegaPresent = self.options.attacker.x89Omega;
 					var x89 = false;
 					if (x89OmegaPresent){
@@ -92,7 +106,9 @@
 					var yinA= self.options.attacker.yinAgent || self.options.defender.yinAgent;
 					var letnevC = self.options.attacker.letnevCommander || self.options.defender.letnevCommander;
 					var directHit = self.options.attacker.directHit || self.options.defender.directHit;
-					if ((duraniumArmor || l1z1xFlagship || letnevFlagship || sardakkMech || argentRaid || reflective || x89 || mentakH || yinA || letnevC || directHit) || self.forceSlow){
+					var cancelHitBarrage=(attackerBarrageNum>0 && defenderCancelHits>0) || (defenderBarrageNum>0 && attackerCancelHits>0);
+					var magenDefenseOmega = self.battleType === BattleType.Ground && self.options.defender.magenDefenseOmega;
+					if ((duraniumArmor || l1z1xFlagship || letnevFlagship || sardakkMech || argentRaid || reflective || x89 || mentakH || yinA || letnevC || directHit || cancelHitBarrage || magenDefenseOmega) || self.forceSlow){
 						output = imitator.estimateProbabilities(self);
 						lastComputed = output[0];
 						self.tgs.attacker.tg = output[1];

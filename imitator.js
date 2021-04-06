@@ -88,6 +88,8 @@
 			var defender = defenderFull.filterForBattle();
 			var doAtLeastOneRound = false;
 			var actions = prebattleActions;
+			var aDeadUnits=[];
+			var dDeadUnits=[];
 
 			if (options.attacker.race === game.Race.Mentak) {
 				actions = prebattleActions.slice();
@@ -127,15 +129,30 @@
 				// Naalu Fighters are considered to be vulnerable to Magen Omega.
 				// Also, I don't try to be clever with which Naalu unit will be killed, GF of a Fighter, even though it's defencers choice
 				// https://www.reddit.com/r/twilightimperium/comments/g82tk6/ground_combat_when_one_side_didnt_come/
-				applyDamage(attacker, 1, options.attacker);
+				//applyDamage(attacker, 1, options.attacker);
+				for (i in attacker){
+					unit = attacker[i];
+					if (unit.damaged || (unit.sustainDamageHits<1 || unit.isDamageGhost)){
+						attacker.splice(i,1);
+						aDeadUnits.push(unit);
+						break;
+					}
+				}
 			}
 			while (hasUnits(attacker) && hasUnits(defender) || (doAtLeastOneRound && round === 0)) {
 				round++;
 				/*console.log('start round')
+				console.log('attacker');
 				consoles=[];
-				consoles[round]=defender;
+				consoles[round]=attacker;
 				for (i in consoles[round]){
 					console.log(consoles[round][i]);
+				}
+				console.log('defender')
+				consolesD=[];
+				consolesD[round]=defender;
+				for (i in consolesD[round]){
+					console.log(consolesD[round][i]);
 				}*/
 				if (options.attacker.race === game.Race.Letnev)
 					repairFlagships(attacker);
@@ -196,12 +213,15 @@
 				var A2 = applyDamage(attacker, defenderInflictedToEverything, options.attacker);
 				var D1 = applyDamage(defender, attackerInflictedToNonFighters, options.defender, null, notFighter)
 				var D2 = applyDamage(defender, attackerInflictedToEverything, options.defender);
-				
+
 				var attackerList = [A1[0]+A2[0]];
 				var defenderList = [D1[0]+D2[0]];
 
-				var aDeadUnits=A1[1].concat(A2[1]);
-				var dDeadUnits=D1[1].concat(D2[1]);
+				aDeadUnits.concat(A1[1].concat(A2[1]));
+				dDeadUnits.concat(D1[1].concat(D2[1]));
+
+				//console.log(attackerInflictedToEverything);
+				//console.log(defenderInflictedToEverything);
 				/*console.log(attackerInflictedToEverything);
 				consoles3=[];
 				consoles3[round]=defender;
@@ -215,11 +235,11 @@
 				for (i in consoles2[round]){
 					console.log(consoles2[round][i]);
 				}*/
-				while (attackerList[1]>0 || defenderList[1]>0){
-					var aTemp = applyDamage(attacker, defenderList[1], options.attacker);
-					var dTemp = applyDamage(defender, attackerList[1], options.defender);
-					aDeadUnits.concat(aTemp[2]);
-					dDeadUnits.concat(dTemp[2]);
+				while (attackerList[0]>0 || defenderList[0]>0){
+					var aTemp = applyDamage(attacker, defenderList[0], options.attacker);
+					var dTemp = applyDamage(defender, attackerList[0], options.defender);
+					aDeadUnits.concat(aTemp[1]);
+					dDeadUnits.concat(dTemp[1]);
 					attackerList= aTemp;
 					defenderList=dTemp;
 				}
@@ -644,8 +664,8 @@
 						if (options.defender.argentStrikeWingBarrageD && options.defender.race !== game.Race.Argent) 
 							defenderInflicted += fromAdditionalRoll(defenderBarrageUnits, game.ThrowType.Barrage,0, defenderReroll);
 						
-						if ((attackerInflicted > defender.filter(unitIsFighterOrCancelHit()).length) && options.attacker.race === game.Race.Argent){
-							var damages=attackerInflicted-defender.filter(unitIsFighterOrCancelHit()).length;
+						if ((attackerInflicted > defender.filter(unitIsFighter()).length) && options.attacker.race === game.Race.Argent){
+							var damages=attackerInflicted-defender.filter(unitIsFighter()).length;
 							for (var i=defender.length-1;i>=0;i--){
 								var unit = defender[i] || {};
 								if (unit.isDamageGhost){
@@ -656,8 +676,8 @@
 									break;
 							}
 						}
-						if (defenderInflicted > attacker.filter(unitIsFighterOrCancelHit()).length && options.defender.race === game.Race.Argent){
-							var damages=defenderInflicted-attacker.filter(unitIsFighterOrCancelHit()).length;
+						if (defenderInflicted > attacker.filter(unitIsFighter()).length && options.defender.race === game.Race.Argent){
+							var damages=defenderInflicted-attacker.filter(unitIsFighter()).length;
 							for (var i=attacker.length-1;i>=0;i--){
 								var unit = attacker[i] || {};
 								if (unit.isDamageGhost){
@@ -670,13 +690,20 @@
 						}
 						if (options.attacker.waylay)
 							var dDeadUnits = applyBarrageDamage(defender, attackerInflicted, options.defender, True);
-						else
-							var dDeadUnits = applyBarrageDamage(defender, attackerInflicted, options.defender, unitIsFighterOrCancelHit());
+						else{
+							if (defender.filter(unitIsFighter()).length>=attackerInflicted)
+								var dDeadUnits = applyBarrageDamage(defender, attackerInflicted, options.defender, unitIsFighterOrCancelHit());
+							else
+							var dDeadUnits = applyBarrageDamage(defender, attackerInflicted, options.defender, unitIsFighter());
+						}
 						if (options.defender.waylay)
 							var aDeadUnits =applyBarrageDamage(attacker, defenderInflicted, options.attacker, True);
-						else
-							var aDeadUnits =applyBarrageDamage(attacker, defenderInflicted, options.attacker, unitIsFighterOrCancelHit());
-
+						else{
+							if (attacker.filter(unitIsFighter()).length>=defenderInflicted)
+								var aDeadUnits =applyBarrageDamage(attacker, defenderInflicted, options.attacker, unitIsFighterOrCancelHit());
+							else
+								var aDeadUnits =applyBarrageDamage(attacker, defenderInflicted, options.attacker, unitIsFighter());
+						}
 						directHit(aDeadUnits,dDeadUnits,'attacker','defender',attacker,defender,options,input);
 						directHit(dDeadUnits,aDeadUnits,'defender','attacker',defender,attacker,options,input);
 						yinFlagship(aDeadUnits,dDeadUnits,'attacker','defender',attacker,defender,options,input);
@@ -696,6 +723,11 @@
 						function unitIsFighterOrCancelHit(){
 							return function (unit) {
 								return unit.type === game.UnitType.Fighter || unit.cancelHit;
+							}; 
+						}
+						function unitIsFighter(){
+							return function (unit) {
+								return unit.type === game.UnitType.Fighter;
 							}; 
 						}
 					},
